@@ -4,6 +4,7 @@ from airflow.operators.bash import BashOperator
 from airflow.providers.docker.operators.docker import DockerOperator
 
 from datetime import timedelta
+import pendulum
 
 
 default_args = {
@@ -12,10 +13,17 @@ default_args = {
     "retry_delay": timedelta(minutes=1),
 }
 
-dag = DAG("nova_training", default_args=default_args)
+# automatic run every day at 23:59
+dag = DAG(
+    dag_id="nova_training",
+    default_args=default_args,
+    schedule="59 23 * * *",
+    start_date=pendulum.datetime(2025, 1, 1, tz="Europe/Amsterdam"),
+    catchup=False,
+    is_paused_upon_creation=False,
+)
 
 
-log_datetime_start_task = BashOperator(task_id="log_datetime_start", bash_command="date", dag=dag)
 
 preprocessing_task = DockerOperator(
     docker_url="unix://var/run/docker.sock",
@@ -23,6 +31,7 @@ preprocessing_task = DockerOperator(
     image="nova:latest",
     network_mode="infra_default",
     task_id="preprocessing",
+    mount_tmp_dir=False,
     mounts=[
         Mount(
             source="data", target="/nova/data"
@@ -37,13 +46,11 @@ feat_eng_task = DockerOperator(
     image="nova:latest",
     network_mode="infra_default",  # note: In order services to communicate each other, we add them to the same network. You do not see in docker-compose.yaml, b/c by default it puts all the services under one network called "infra_default".
     task_id="feature_engineering",
+    mount_tmp_dir=False,
     mounts=[Mount(source="data", target="/nova/data")],
     dag=dag,
 )
 
-completely_unnecessary_task_to_display_parallelism = BashOperator(
-    task_id="Chatter", bash_command="for i in {1..10}; do date +'%Y-%m-%d %H:%M:%S'; sleep 5; done", dag=dag
-)
 
 model_training_task = DockerOperator(
     docker_url="unix://var/run/docker.sock",
@@ -51,17 +58,14 @@ model_training_task = DockerOperator(
     image="nova:latest",
     network_mode="infra_default",
     task_id="training",
+    mount_tmp_dir=False,
     mounts=[Mount(source="data", target="/nova/data")],
     dag=dag,
 )
 
-log_datetime_end_task = BashOperator(task_id="log_datetime_end", bash_command="date", dag=dag)
-
 
 (
-    log_datetime_start_task
-    >> preprocessing_task
-    >> [feat_eng_task, completely_unnecessary_task_to_display_parallelism]
-    >> model_training_task
-    >> log_datetime_end_task
+    preprocessing_task >>
+    feat_eng_task >> 
+    model_training_task
 )
