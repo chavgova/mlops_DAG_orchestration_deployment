@@ -12,7 +12,9 @@ if __name__ == "__main__":
     for col in ["payment_type", "category", "customer", "gender", "merchant"]:
         raw_csv[col] = raw_csv[col].str.replace("'", "")
 
-    raw_csv["chck_date"] = pd.to_datetime(raw_csv["chck_date"], errors="raise", format="%Y-%m-%d %H:%M:%S")
+    raw_csv["chck_date"] = pd.to_datetime(
+        raw_csv["chck_date"], errors="raise", format="%Y-%m-%d %H:%M:%S"
+    )
     raw_csv["chck_date"] = raw_csv["chck_date"].fillna(UTC_EPOCH)
     raw_csv = raw_csv.astype({"amount": "float32", "fraud": "bool"})
     raw_csv["chck_date_day"] = raw_csv["chck_date"].dt.strftime("%Y-%m-%d")

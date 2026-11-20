@@ -20,9 +20,17 @@ from src.mlflow_utils import (
 
 # note: Changed the main to multi-step process. See the "Fault Tolerance" and recovery at W3.
 @click.command()
-@click.option("--preprocess", is_flag=True, help="Flag argument for running Preprocessing step.")
-@click.option("--feat-eng", is_flag=True, help="Flag argument for running Feature Engineering step.")
-@click.option("--training", is_flag=True, help="Flag argument for running Training step.")
+@click.option(
+    "--preprocess", is_flag=True, help="Flag argument for running Preprocessing step."
+)
+@click.option(
+    "--feat-eng",
+    is_flag=True,
+    help="Flag argument for running Feature Engineering step.",
+)
+@click.option(
+    "--training", is_flag=True, help="Flag argument for running Training step."
+)
 def main(preprocess: bool, feat_eng: bool, training: bool):  # pragma: no cover
     if preprocess:
         data = get_preprocessed_data(datetime.date(year=2019, month=6, day=1))
@@ -54,7 +62,8 @@ def main(preprocess: bool, feat_eng: bool, training: bool):  # pragma: no cover
         create_mlflow_experiment_if_not_exist()
         create_mlflow_run_if_not_exists(run_config.run_name)
         save_artifacts_to_mlflow(
-            {ModelConfig.model_name: model, "cv_scores": model.get_cv_scores()}, get_latest_run_id(run_config.run_name)
+            {ModelConfig.model_name: model, "cv_scores": model.get_cv_scores()},
+            get_latest_run_id(run_config.run_name),
         )
         mlflow.end_run(RunStatus.to_string(RunStatus.FINISHED))
 

@@ -6,7 +6,11 @@ import pandas as pd
 import pytest
 from pyspark.testing.utils import assertDataFrameEqual
 
-from src.data_preprocessing import _get_data_after, get_preprocessed_data, get_nested_column_extended
+from src.data_preprocessing import (
+    _get_data_after,
+    get_preprocessed_data,
+    get_nested_column_extended,
+)
 
 
 def test_get_data_after(spark_fixture):
@@ -171,7 +175,9 @@ def test_get_preprocessed_data(spark_fixture):
 def test_get_nested_column_extended():
     cases = [
         {
-            "data": pd.DataFrame({"foo": [1, 2, 3], "listed_col": [[1, 2], [3, 4], [5, 6]]}),
+            "data": pd.DataFrame(
+                {"foo": [1, 2, 3], "listed_col": [[1, 2], [3, 4], [5, 6]]}
+            ),
             "col_name": "listed_col",
             "expected": pd.DataFrame(
                 {
@@ -208,7 +214,9 @@ def test_get_nested_column_extended():
 def test_get_nested_column_extended_nonuniform_length():
     cases = [
         {
-            "data": pd.DataFrame({"foo": [1, 2, 3], "listed_col": [[1], [3, 4, "y"], [5, 6, "z"]]}),
+            "data": pd.DataFrame(
+                {"foo": [1, 2, 3], "listed_col": [[1], [3, 4, "y"], [5, 6, "z"]]}
+            ),
             "col_name": "listed_col",
             "expected": pd.DataFrame(
                 {

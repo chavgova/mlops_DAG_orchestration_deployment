@@ -95,6 +95,8 @@ def get_preprocessed_data(start_date: date) -> DataFrame:
     data = _get_data_after(start_date)
     # Remember the lazy execution:
     # - This will actually (should) help with reading even fewer data.
-    data = data.sample(run_config.sample_rate)  # Not making this a func. as it is a simple one-liner.
+    data = data.sample(
+        run_config.sample_rate
+    )  # Not making this a func. as it is a simple one-liner.
     # I don't have to deal with string encoding like .csv here, as Parquet encodes string properly.
     return data
