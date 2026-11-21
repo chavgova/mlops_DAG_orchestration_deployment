@@ -2,10 +2,11 @@ from airflow import DAG
 from docker.types import Mount
 from airflow.operators.bash import BashOperator
 from airflow.providers.docker.operators.docker import DockerOperator
-
+from airflow.providers.standard.operators.python import PythonOperator
 from datetime import timedelta
 import pendulum
 
+from urllib.request import Request, urlopen
 
 default_args = {
     "depends_on_past": False,
@@ -21,8 +22,8 @@ dag = DAG(
     start_date=pendulum.datetime(2025, 1, 1, tz="Europe/Amsterdam"),
     catchup=False,
     is_paused_upon_creation=False,
+    max_active_runs=1,
 )
-
 
 
 preprocessing_task = DockerOperator(
@@ -64,8 +65,19 @@ model_training_task = DockerOperator(
 )
 
 
-(
-    preprocessing_task >>
-    feat_eng_task >> 
-    model_training_task
+def reload_api():
+    request = Request("http://app:5001/reload", method="POST")
+
+    with urlopen(request, timeout=300) as response:
+        print(response.read().decode())
+
+
+reload_api_task = PythonOperator(
+    task_id="reload_api",
+    python_callable=reload_api,
+    execution_timeout=timedelta(minutes=7),
+    dag=dag,
 )
+
+
+(preprocessing_task >> feat_eng_task >> model_training_task >> reload_api_task)
