@@ -10,7 +10,7 @@ services:
     ports:
       - "5001:5001"  # see: https://developer.apple.com/forums/thread/682332
     healthcheck:
-      test: apt-get update -y && apt-get install -y curl && curl --fail http://localhost:5000/health || exit 1
+      test: apt-get update -y && apt-get install -y curl && curl --fail http://localhost:5001/health || exit 1
       retries: 5
       interval: 30s  # Cache loading is taking a long time for this app
 

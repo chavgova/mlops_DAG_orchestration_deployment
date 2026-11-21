@@ -31,6 +31,7 @@ class _FeatureExtractorData:
         self._std_amount_all_categories: typing.Optional[float] = None
         self._mean_amount_per_category: typing.Optional[dict[str, float]] = {}
         self._std_amount_per_category: typing.Optional[dict[str, float]] = {}
+        self._category_popularity: dict[str, float] = {}
 
     def is_set(self) -> bool:
         return (
@@ -67,7 +68,11 @@ class _FeatureExtractorData:
             "wb",
         ) as f:
             pickle.dump(self._std_amount_per_category, f)
-
+        with open(
+            os.path.join(directory_path, PathsConfig.category_popularity_file_name),
+            "wb",
+        ) as f:
+            pickle.dump(self._category_popularity, f)
         # Spark objects tend to be non-pickle'able due to their distributed nature. Because of that, we need to use its
         # own write function.
         # See also: https://stackoverflow.com/questions/49891686/cant-pickle-thread-lock-objects-pyspark-send-request-to-elasticseach
@@ -152,7 +157,15 @@ class _FeatureExtractorData:
                 "rb",
             ) as f:
                 column_path_map = pickle.load(f)
-
+            with open(
+                os.path.join(
+                    dir_name,
+                    run_config.run_name,
+                    PathsConfig.category_popularity_file_name,
+                ),
+                "rb",
+            ) as f:
+                self._category_popularity = pickle.load(f)
             # StringIndexerModel, and OneHotEncoderModel requires a spark session initialized to load.
             # Therefore we need to make sure there is an already active Spark session before we attempt to load.
             SparkSession.builder.master(run_config.spark_master_url).getOrCreate()
@@ -227,15 +240,24 @@ class FeatureExtractor:
         Feature extraction for training-time.
         """
         stats = data.groupby("category").agg(
-            F.mean("amount").alias("mean"), F.stddev("amount").alias("std")
+            F.mean("amount").alias("mean"),
+            F.stddev("amount").alias("std"),
+            F.count("*").alias("count"),
         )
-        for row in stats.collect():
+
+        category_stats = stats.collect()
+        total_count = sum(row["count"] for row in category_stats)
+
+        for row in category_stats:
             self._set_mean_std_for_category(row.mean, row.std, row.category)
+            self._state._category_popularity[row.category] = row["count"] / total_count
+
+        data = self._get_category_popularity(data)
         data = self._get_z_score_per_category(data)
 
         self._set_mean_std_for_all_categories(
-            data.select(F.mean(F.col("Amount"))).collect()[0][0],
-            data.select(F.std(F.col("Amount"))).collect()[0][0],
+            data.select(F.mean("amount")).first()[0],
+            data.select(F.stddev("amount")).first()[0],
         )
         data = self._get_z_score_all_categories(data)
 
@@ -258,8 +280,10 @@ class FeatureExtractor:
         """
         Feature extraction for inference-time.
         """
+        data = self._get_category_popularity(data)
         data = self._get_z_score_per_category(data)
         data = self._get_z_score_all_categories(data)
+
         for col_name in run_config.categorical_cols:
             data = self._get_string_indexed(data, col_name)
             data = self._get_encoded(data, col_name)
@@ -357,6 +381,18 @@ class FeatureExtractor:
         """
         self._state._mean_amount_all_categories = mean
         self._state._std_amount_all_categories = std
+
+    def _get_category_popularity(self, data: DataFrame) -> DataFrame:
+        popularity_data = [
+            (category, popularity)
+            for category, popularity in self._state._category_popularity.items()
+        ]
+
+        popularity_df = data.sparkSession.createDataFrame(
+            popularity_data, ["category", "category_popularity"]
+        )
+
+        return data.join(popularity_df, on="category", how="left")
 
     def _set_fit_string_indexer(self, data: DataFrame, col_name: str):
         """

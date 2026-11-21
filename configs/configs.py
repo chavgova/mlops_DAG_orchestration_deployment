@@ -14,6 +14,7 @@ class PathsConfig:
     indexer_per_column_file_name_prefix = "indexer_per_column_"
     encoder_per_column_file_name_prefix = "encoder_per_column_"
     column_path_map_file_name = "column_path_map.pkl"
+    category_popularity_file_name = "category_popularity.pkl"
 
 
 @dataclass(frozen=True)

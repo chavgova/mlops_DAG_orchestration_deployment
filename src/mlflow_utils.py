@@ -69,4 +69,5 @@ def save_artifacts_to_mlflow(artifacts: dict[str, typing.Any], run_id: str):
             artifact_path = f"{tempdir}/{artifact_name}.pkl"
             with open(artifact_path, "wb") as f:
                 pickle.dump(artifact, f)
-                mlflow.log_artifact(artifact_path, f"{run_config.run_name}", run_id)
+
+            mlflow.log_artifact(artifact_path, f"{run_config.run_name}", run_id)
